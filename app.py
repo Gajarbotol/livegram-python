@@ -79,49 +79,52 @@ def handle_message(update, context):
 def forward_message(update, context, chat_id):
     # If the message is from the admin, reply to the original sender
     if chat_id == int(ADMIN_CHAT_ID):
-        original_message_id = update.message.reply_to_message.message_id
-        original_data = context.bot_data.get(original_message_id)
-        if original_data:
-            target_chat_id = original_data['chat_id']
-            if update.message.text:
-                context.bot.send_message(chat_id=target_chat_id, text=update.message.text)
-            elif update.message.photo:
-                context.bot.send_photo(chat_id=target_chat_id, photo=update.message.photo[-1].file_id, caption=update.message.caption)
-            elif update.message.video:
-                context.bot.send_video(chat_id=target_chat_id, video=update.message.video.file_id, caption=update.message.caption)
-            elif update.message.document:
-                context.bot.send_document(chat_id=target_chat_id, document=update.message.document.file_id, caption=update.message.caption)
-            elif update.message.audio:
-                context.bot.send_audio(chat_id=target_chat_id, audio=update.message.audio.file_id, caption=update.message.caption)
-            elif update.message.voice:
-                context.bot.send_voice(chat_id=target_chat_id, voice=update.message.voice.file_id, caption=update.message.caption)
-            elif update.message.sticker:
-                context.bot.send_sticker(chat_id=target_chat_id, sticker=update.message.sticker.file_id)
+        if update.message.reply_to_message:  # Ensure the admin is replying to a forwarded message
+            original_message_id = update.message.reply_to_message.message_id
+            original_data = context.bot_data.get(original_message_id)
+            if original_data:
+                target_chat_id = original_data['chat_id']
+                if update.message.text:
+                    context.bot.send_message(chat_id=target_chat_id, text=update.message.text)
+                elif update.message.photo:
+                    context.bot.send_photo(chat_id=target_chat_id, photo=update.message.photo[-1].file_id, caption=update.message.caption)
+                elif update.message.video:
+                    context.bot.send_video(chat_id=target_chat_id, video=update.message.video.file_id, caption=update.message.caption)
+                elif update.message.document:
+                    context.bot.send_document(chat_id=target_chat_id, document=update.message.document.file_id, caption=update.message.caption)
+                elif update.message.audio:
+                    context.bot.send_audio(chat_id=target_chat_id, audio=update.message.audio.file_id, caption=update.message.caption)
+                elif update.message.voice:
+                    context.bot.send_voice(chat_id=target_chat_id, voice=update.message.voice.file_id, caption=update.message.caption)
+                elif update.message.sticker:
+                    context.bot.send_sticker(chat_id=target_chat_id, sticker=update.message.sticker.file_id)
+                else:
+                    context.bot.send_message(chat_id=target_chat_id, text="Received an unsupported message type.")
             else:
-                context.bot.send_message(chat_id=target_chat_id, text="Received an unsupported message type.")
+                context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="Error: Original message not found.")
         else:
-            context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="Error: Original message not found.")
+            context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="Please reply to a forwarded message to respond to the user.")
     else:
         # Forward different types of messages to the admin without reply markup
         if update.message.text:
-            context.bot.forward_message(chat_id=ADMIN_CHAT_ID, from_chat_id=chat_id, message_id=update.message.message_id)
+            forwarded_message = context.bot.forward_message(chat_id=ADMIN_CHAT_ID, from_chat_id=chat_id, message_id=update.message.message_id)
         elif update.message.photo:
-            context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=update.message.photo[-1].file_id, caption=update.message.caption)
+            forwarded_message = context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=update.message.photo[-1].file_id, caption=update.message.caption)
         elif update.message.video:
-            context.bot.send_video(chat_id=ADMIN_CHAT_ID, video=update.message.video.file_id, caption=update.message.caption)
+            forwarded_message = context.bot.send_video(chat_id=ADMIN_CHAT_ID, video=update.message.video.file_id, caption=update.message.caption)
         elif update.message.document:
-            context.bot.send_document(chat_id=ADMIN_CHAT_ID, document=update.message.document.file_id, caption=update.message.caption)
+            forwarded_message = context.bot.send_document(chat_id=ADMIN_CHAT_ID, document=update.message.document.file_id, caption=update.message.caption)
         elif update.message.audio:
-            context.bot.send_audio(chat_id=ADMIN_CHAT_ID, audio=update.message.audio.file_id, caption=update.message.caption)
+            forwarded_message = context.bot.send_audio(chat_id=ADMIN_CHAT_ID, audio=update.message.audio.file_id, caption=update.message.caption)
         elif update.message.voice:
-            context.bot.send_voice(chat_id=ADMIN_CHAT_ID, voice=update.message.voice.file_id, caption=update.message.caption)
+            forwarded_message = context.bot.send_voice(chat_id=ADMIN_CHAT_ID, voice=update.message.voice.file_id, caption=update.message.caption)
         elif update.message.sticker:
-            context.bot.send_sticker(chat_id=ADMIN_CHAT_ID, sticker=update.message.sticker.file_id)
+            forwarded_message = context.bot.send_sticker(chat_id=ADMIN_CHAT_ID, sticker=update.message.sticker.file_id)
         else:
             context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="Received an unsupported message type.")
 
         # Store the original chat_id and message_id to reply back later, but no reply markup
-        context.bot_data[update.message.message_id] = {'chat_id': chat_id, 'message_id': update.message.message_id}
+        context.bot_data[forwarded_message.message_id] = {'chat_id': chat_id, 'message_id': update.message.message_id}
 
 # Register handlers
 dispatcher.add_handler(CommandHandler('start', start))
