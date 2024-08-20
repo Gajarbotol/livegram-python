@@ -82,11 +82,27 @@ def forward_message(update, context, chat_id):
         original_message_id = update.message.reply_to_message.message_id
         original_data = context.bot_data.get(original_message_id)
         if original_data:
-            context.bot.send_message(chat_id=original_data['chat_id'], text=update.message.text, reply_to_message_id=original_data['message_id'])
+            target_chat_id = original_data['chat_id']
+            if update.message.text:
+                context.bot.send_message(chat_id=target_chat_id, text=update.message.text, reply_to_message_id=original_data['message_id'])
+            elif update.message.photo:
+                context.bot.send_photo(chat_id=target_chat_id, photo=update.message.photo[-1].file_id, caption=update.message.caption, reply_to_message_id=original_data['message_id'])
+            elif update.message.video:
+                context.bot.send_video(chat_id=target_chat_id, video=update.message.video.file_id, caption=update.message.caption, reply_to_message_id=original_data['message_id'])
+            elif update.message.document:
+                context.bot.send_document(chat_id=target_chat_id, document=update.message.document.file_id, caption=update.message.caption, reply_to_message_id=original_data['message_id'])
+            elif update.message.audio:
+                context.bot.send_audio(chat_id=target_chat_id, audio=update.message.audio.file_id, caption=update.message.caption, reply_to_message_id=original_data['message_id'])
+            elif update.message.voice:
+                context.bot.send_voice(chat_id=target_chat_id, voice=update.message.voice.file_id, caption=update.message.caption, reply_to_message_id=original_data['message_id'])
+            elif update.message.sticker:
+                context.bot.send_sticker(chat_id=target_chat_id, sticker=update.message.sticker.file_id, reply_to_message_id=original_data['message_id'])
+            else:
+                context.bot.send_message(chat_id=target_chat_id, text="Received an unsupported message type.", reply_to_message_id=original_data['message_id'])
         else:
             context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="Error: Original message not found.")
     else:
-        # Forward different types of messages
+        # Forward different types of messages to the admin
         if update.message.text:
             forwarded_message = context.bot.forward_message(chat_id=ADMIN_CHAT_ID, from_chat_id=chat_id, message_id=update.message.message_id)
         elif update.message.photo:
