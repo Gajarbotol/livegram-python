@@ -1,6 +1,7 @@
 from flask import Flask, request
 import os
 import logging
+import sqlite3
 from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters
 from datetime import datetime, timedelta
@@ -23,6 +24,20 @@ last_message_time = {}
 
 # Set to store banned users' chat IDs
 banned_users = set()
+
+# SQLite database setup
+conn = sqlite3.connect('message_data.db', check_same_thread=False)
+cursor = conn.cursor()
+
+# Create table if it doesn't exist
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS messages (
+        admin_message_id INTEGER PRIMARY KEY,
+        user_chat_id INTEGER NOT NULL,
+        user_message_id INTEGER NOT NULL
+    )
+''')
+conn.commit()
 
 # Define the /start command handler
 def start(update, context):
@@ -81,9 +96,12 @@ def forward_message(update, context, chat_id):
     if chat_id == int(ADMIN_CHAT_ID):
         if update.message.reply_to_message:  # Ensure the admin is replying to a forwarded message
             original_message_id = update.message.reply_to_message.message_id
-            original_data = context.bot_data.get(original_message_id)
+            
+            cursor.execute('SELECT user_chat_id, user_message_id FROM messages WHERE admin_message_id=?', (original_message_id,))
+            original_data = cursor.fetchone()
+            
             if original_data:
-                target_chat_id = original_data['chat_id']
+                target_chat_id, user_message_id = original_data
                 if update.message.text:
                     context.bot.send_message(chat_id=target_chat_id, text=update.message.text)
                 elif update.message.photo:
@@ -123,8 +141,10 @@ def forward_message(update, context, chat_id):
         else:
             context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="Received an unsupported message type.")
 
-        # Store the original chat_id and message_id to reply back later, but no reply markup
-        context.bot_data[forwarded_message.message_id] = {'chat_id': chat_id, 'message_id': update.message.message_id}
+        # Store the original chat_id and message_id in the SQLite database to reply back later
+        cursor.execute('INSERT INTO messages (admin_message_id, user_chat_id, user_message_id) VALUES (?, ?, ?)', 
+                       (forwarded_message.message_id, chat_id, update.message.message_id))
+        conn.commit()
 
 # Register handlers
 dispatcher.add_handler(CommandHandler('start', start))
